@@ -11,12 +11,9 @@ output:
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-
 ## Summary
 
 This is an exploration and analysis of the data set `bikeVendors` provided in **i590 Applied Data Science Spring 2019** at *Indiana University*. It follows very closely to the readings of [*The Art of Data Science: A Guide for Anyone Who Works with Data*](https://leanpub.com/artofdatascience) by Roger D. Peng and Elizabeth Matsui. 
-
-
 
 Before we begin it should be known that this project will follow the structure of the *Epicycle of Analysis* noted in *The Art of Data Science (Peng and Matsui 2008)* which is listed below.
 
@@ -82,26 +79,24 @@ With new knowledge you then refine your question to be more precise.
 
 >"What type of bicycles are people most interested in?"
 
-Next, you note that your questions are *Exploratory and Predictive* which will drive your approach as you take a look at the data. You also start to develop expectations by following the 3 subset of steps learned from the *Epicycle of Analysis*. From personal experience, you might expect there to be at least two types of bike riders: One as a road cyclist, and a second as a mountain cyclist. Also, if we were to think about what we would consider when shopping for a bicycle, one might think that price and budget would play a huge factor in your decision. Let's now take a look at the data.
 
-```{r}
-head(df)
-```
+Next, you note that your questions are *Exploratory and Predictive* which will drive your approach as you take a look at the data. You also start to develop expectations by following the 3 subset of steps learned from the *Epicycle of Analysis*. From personal experience, you might expect there to be at least two types of bike riders: One as a road cyclist, and a second as a mountain cyclist. Also, if we were to think about what we would consider when shopping for a bicycle, one might think that price and budget would play a huge factor in your decision. Let's now take a look at the data using `head(df)`.
 
 Here, we can see that most of the data are **sale percentages** of different models of bicycles across bike vendors. We also notice the data set contains `category1` as main categories of `Road` or `Mountain` bikes and subcategories listed as `category2`. Lastly, we see that there is a `frame` column and a `price` column. After collecting the data and comparing it to our expectations, we see that they match but we realized that the question, **"What are the predictors?"**, will automatically be answered as we explore and analyze the data. In this project it should be noted that we will only work with the features presented in this data but in other projects you may have to pull data from other sources in order to find more predictors and features. Since we have a relationship between different bike vendors and different types of bikes, we can update the question with,
 
 >"Where would our bicycle sell the best?"
 
-
 ## Step 2: Explore the data
 
 It's always good to do a quick descriptive analysis of the data before you begin modeling.
 
-The `str()` function lays out some important descriptives. At the top it shows 97 observations (rows) and 35 variables/features (columns). Then it shows the type of each variable: `model`, `category1`, `category2`, `frame` are all `Factor` or categorical variables, and the rest of the 35 variables are all etiher `int` (discrete) or `num` (continuous) variables.
+The `str()` function lays out some important descriptives. Using `str(df`) we get the following:
 
-```{r descriptives}
-str(df)
-```
+* 97 observations (rows) and 35 variables/features (columns)
+* The type of each variable: 
+  * `model`, `category1`, `category2`, `frame` are all `Factor` or categorical variables
+  * `price` is `int` or discrete variable
+  * bike vendors (sales percentages) are `num` or continuous variables
 
 Next, we should check for missing values.
 
@@ -119,21 +114,20 @@ An example of expectations would be:
 * `price` range will be between 200 and 10,000.
 * A few `model` bikes will have a large share of sales.
 
-```{r summary}
-summary(df)
-```
+After running `summary(df)`, we get the following results:
 
-Comparing our expectations and the data we can see that there is a close to even split of `Mountain` (51) and `Road` bikes (46). The `price` range is from 415 to 12,790 with the average being 3,954. And looking at the `max` sale perentage of any of the vendors is around .05 with the `mean` of any particular bicycle sale percentage to be around .01. What this tells us is that there aren't any single `model` bicycle that dominates the market. Without having anything else to compare with, we just have to assume the data is correct and that we just change our expectations to match the data which overall were pretty close to the actual data.
+* `category1` has 51 `Mountain` bikes and 46 `Road` bikes
+* `price` has a range from 415 to 12,790 and an average of 3,954
+* `max` sale perentage of any of the vendors is around .05 with the `mean` of .01 
+
+Comparing our expectations and the data we can see that they are fairly close. The `max` and `mean` of the vendors tells us is that there aren't any single `model` bicycle that dominates the market. Without having anything else to compare with, we just have to assume the data is correct and that we just change our expectations to match the data.
 
 The next step might be to see if there are any correlations between bike vendors that could help us determine if there are any patterns in our data.
 
-```{r corrplot}
+```{r corrplot, message=FALSE}
 library(corrplot)
-
 res <- cor(df[ ,-(1:5)])
-
 corrplot(res, type = "upper", tl.col = "black", tl.cex = .5, order = "hclust")
-
 ```
 
 Notice the `corrplot` function specified `order = "hclust"` which did a hierarchical cluster of bike vendors that are strongly correlated with each other. This can quickly show us if there are any groups we could cluster together and from the plot we can see that there are.
@@ -147,9 +141,10 @@ As we saw in the previous step of exploring the data, we saw from the `corrplot`
 
 >"How many clusters are there?"
 
+
 This is an important question because this can also lead to an analysis of the different types of customers in the market. Here we will be implementing a `Kmeans()` model.
 
-The idea of clustering is so to group the data in similar categories in hopes the results will be meaningful to our question. Since we are interested in the consumer demographics of bicycles, the first step is to transpose the current data frame to have vendors as observations (rows) and bicycles as features (columns).
+The idea of clustering is so to group the data in similar categories in hopes the results will be meaningful to our question. Since we are interested in the consumer demographics of bicycles, the first step is to **preprocess** the data by transposing the current data frame to have vendors as observations (rows) and bicycles as features (columns) because we want to find groups between vendors. Since the data for vendors are all on the same scale (sales percentage), we don't have to scale the data by normalizing or standardizing.
 
 ```{r df.t}
 df.t <- as.data.frame(t(df))
@@ -160,23 +155,19 @@ Not knowing how many clusters we should have we need to run an `Elbow` and `Silh
 
 The first plot generated to find how many clusters we need is called an Elbow or Scree plot. This basically takes **total within-cluster sum of squares** for a range of `k` or `centers` of the `kmean()` model and plots them with `k` on the x-axis and **total within-cluster sum of squares** on the y-axis. It's called the "elbow" method because you subjectively decide at which point `k` does it start to level off creating what an "elbow".
 
-```{r elbow}
+```{r elbow, message=FALSE}
 library(tidyverse)
 library(purrr)
-
 set.seed(1234)
 tot_withinss <- map_dbl(1:10, function(k){
   model <- kmeans(x = df.t[-(1:5),], centers = k)
   model$tot.withinss
 })
-
 elbow_df <- data.frame(
   k = 1:10,
   tot_withinss = tot_withinss
 )
-
 theme_update(plot.title = element_text(hjust = 0.5))
-
 ggplot(elbow_df, aes(x = k, y = tot_withinss)) +
   geom_line() +
   geom_point() +
@@ -195,18 +186,15 @@ The Silhouette plot is similar to the Elbow plot but the Silhouette plot takes t
 
 ```{r silhouette}
 library(cluster)
-
 set.seed(1234)
 sil_width <- map_dbl(2:10, function(k){
   model <- pam(x = df.t[-(1:5),], k = k)
   model$silinfo$avg.width
 })
-
 sil_df <- data.frame(
   k = 2:10,
   sil_width = sil_width
 )
-
 ggplot(sil_df, aes(x = k, y = sil_width)) +
   geom_line() +
   geom_point() +
@@ -224,23 +212,50 @@ Now that we know how many clusters we need,the next step is to create the cluste
 ```{r cluster_dist}
 set.seed(1234)
 kmeans_model <- kmeans(x = df.t[-(1:5),], centers = 4)
-
-kclusters <- kmeans_model$cluster
-
-tmpdf <- df.t[-(1:5),]
-tmpdf$cluster <- kclusters
-
-count(tmpdf, cluster)
 ```
 
-After running a `count` on the newly created clusters, we can see the distribution of clusters. It looks like most of the vendors are in cluster 2. Let's explore more to see if this is meaningful.
+Next, we can visualize our new findings using `fviz_cluster()`
+
+```{r message=FALSE}
+library(factoextra)
+x <- data.frame(sapply(df.t[-(1:5),],as.numeric), row.names = rownames(df.t[-(1:5),]))
+fviz_cluster(kmeans_model, x, labelsize = 8, geom = "text", main = "Kmeans Cluster Plot")
+```
+
+Looking at the plot, we can see how the clusters are gathered. The only questionable cluster is **Cluster 2** and vendors `Kansas.City.29ers` and `Denver.Bike.Shop` could possibly form their own cluster. But lets continue looking at more information.
+
+We can use `count()` to see the distribution.
+
+```{r message=FALSE}
+library(knitr)
+library(kableExtra)
+kclusters <- kmeans_model$cluster
+x$cluster <- kclusters
+kable(count(x, cluster)) %>%
+  kable_styling(full_width = FALSE, position = "left", font_size = 11)
+```
+
+It looks like most of the vendors are in cluster 2. Let's look at what vendors are in which cluster. Knowing the distribution will also help in creating the table because `R` doesn't like unequal columns and makes it difficult to work with. The following code chunk shows what this means.
+
 
 ```{r list_clusters}
-for (i in 1:4) {
-  print(kclusters[kclusters == i])
-}
+#rep() is used to fill empty cells
+c2 <- names(kclusters[kclusters == 2]) #use cluster 2 first since its longest
+c1 <- c(names(kclusters[kclusters == 1]), rep("", times =length(c2) - 6)) #6 is the length of cluster 1
+c3 <- c(names(kclusters[kclusters == 3]), rep("", times =length(c2) - 8)) #8 is the length of cluster 3
+c4 <- c(names(kclusters[kclusters == 4]), rep("", times =length(c2) - 3)) #3 is the length of cluster 4
+
+kable(data.frame(cbind("Cluster 1" = c1,
+                       "Cluster 2" = c2,
+                       "Cluster 3" = c3,
+                       "Cluster 4" = c4))) %>%
+  kable_styling(full_width = TRUE, position = "left", font_size = 11)
 ```
 
+Since the Cluster plot can get a little messy, its difficult to see all of the names of the vendors on the plot. It's nice to see a table that shows all of them clear listed and assigned to each cluster.
+
+
+These next steps are creating a data frame with the `centers` or cluster means made from the `kmeans()` model. Looking back at the Cluster plot, the `centers` would be the the `mean` of the distances of each vendor, giving a central point to the cluster. We can use this to `sort` the data and look at the top 10 best selling bike `models`.
 
 ```{r}
 #gather cluster centroids
@@ -251,55 +266,55 @@ df.clustered <- cbind(df[,1:5], cluster_means)
 ```
 
 
-
 ```{r cluster1}
-library(knitr)
 
 kable(
   df.clustered %>%
   arrange(desc(C1)) %>%
   select(model, category1, category2, frame, price, C1) %>%
-  top_n(10))
+  top_n(10)) %>%
+  kable_styling(full_width = TRUE, position = "center", font_size = 11)
 ```
+
+**Cluster 1** has 6 vendors: Cincinnati.Speed, Columbus.Race.Equipment, Las.Vegas.Cycles, Louisville.RaceEquipment, San.Francisco.Cruisers, & Wichita.Speed. 
+
+Their top 10 selling bikes are all `Road` bikes on the more expensive side with a range of `3200` up to `9590`. All but one were made out of `Carbon`.
+
 
 ```{r cluster2}
 kable(
   df.clustered %>%
   arrange(desc(C2)) %>%
   select(model, category1, category2, frame, price, C2) %>%
-  top_n(10))
+  top_n(10)) %>%
+  kable_styling(full_width = TRUE, position = "center", font_size = 11)
 ```
+
+**Cluster 2** has 13 vendors (the most of any cluster):  Albuquerque.Cycles, Dallas.Cycles, Denver.Bike.Shop, Detroit.Cycles, Kansas.City.29ers, Los.Angeles.Cycles, Minneapolis.Bike.Shop, New.York.Cycles, Philadelphia.Bike.Shop, Phoenix.Bi.peds, Portland.Bi.peds, Providence.Bi.peds, San.Antonio.Bike.Shop.
+
+Their top 10 selling bikes are a mix of `Mountain` and `Road` bikes that are on the lower end of price with a range of `815` to `2880`. Only 3 bikes have a `Carbon` frame.
 
 ```{r cluster3}
 kable(
   df.clustered %>%
   arrange(desc(C3)) %>%
   select(model, category1, category2, frame, price, C3) %>%
-  top_n(10))
+  top_n(10)) %>%
+  kable_styling(full_width = TRUE, position = "center", font_size = 11)
 ```
+
+**Cluster 3** has 8 vendors: Ann.Arbor.Speed, Austin.Cruisers, Indianapolis.Velocipedes, Miami.Race.Equipment, Nashville.Cruisers, New.Orleans.Velocipedes, Oklahoma.City.Race.Equipment, Seattle.Race.Equipment 
+
+Their top 10 selling bikes are all `Road` bikes that are on the lower end of price with a range of `1030` to `3200`. There is an even mix of `Carbon` and `Aluminum` frames.
 
 ```{r cluster4}
 kable(
   df.clustered %>%
   arrange(desc(C4)) %>%
   select(model, category1, category2, frame, price, C4) %>%
-  top_n(10))
+  top_n(10)) %>%
+  kable_styling(full_width = TRUE, position = "center", font_size = 11)
 ```
-
-
-From exploring the clusters more thoroughly, we can see some patterns develop between the clusters.
-
-**Cluster 1** has 6 vendors: Cincinnati.Speed, Columbus.Race.Equipment, Las.Vegas.Cycles, Louisville.RaceEquipment, San.Francisco.Cruisers, & Wichita.Speed. 
-
-Their top 10 selling bikes are all `Road` bikes on the more expensive side with a range of `3200` up to `9590`. All but one were made out of `Carbon`.
-
-**Cluster 2** has 13 vendors (the most of any cluster):  Albuquerque.Cycles, Dallas.Cycles, Denver.Bike.Shop, Detroit.Cycles, Kansas.City.29ers, Los.Angeles.Cycles, Minneapolis.Bike.Shop, New.York.Cycles, Philadelphia.Bike.Shop, Phoenix.Bi.peds, Portland.Bi.peds, Providence.Bi.peds, San.Antonio.Bike.Shop.
-
-Their top 10 selling bikes are a mix of `Mountain` and `Road` bikes that are on the lower end of price with a range of `815` to `2880`. Only 3 bikes have a `Carbon` frame.
-
-**Cluster 3** has 8 vendors: Ann.Arbor.Speed, Austin.Cruisers, Indianapolis.Velocipedes, Miami.Race.Equipment, Nashville.Cruisers, New.Orleans.Velocipedes, Oklahoma.City.Race.Equipment, Seattle.Race.Equipment 
-
-Their top 10 selling bikes are all `Road` bikes that are on the lower end of price with a range of `1030` to `3200`. There is an even mix of `Carbon` and `Aluminum` frames.
 
 **Cluster 4** has only 3 vendors: Ithaca.Mountain.Climbers,  Pittsburgh.Mountain.Machines, Tampa.29ers
 
@@ -309,7 +324,6 @@ Their top 10 selling bikes are all `Mountain` bikes with the exception of one `R
 Now that we have gathered all the information and described our findings the final step of cluster analysis is to determine if any of this is meaningful. Typically, which is also noted in the book that 
 
 >"interpretation is actually happening continuously throughout an analysis" - Peng and Matou 2008
-
 we would now interpret these results but this will be saved for the next step **Step 4: Interpreting the results**
 
 ### Regression Analysis
@@ -321,21 +335,31 @@ Let's create **Cluster** data frames with `price` included.
 
 ```{r clustersdf}
 #create cluster df
-cluster1 <- cbind(df[names(kclusters[kclusters == 1])], price = df$price)
-cluster2 <- cbind(df[names(kclusters[kclusters == 2])], price = df$price)
-cluster3 <- cbind(df[names(kclusters[kclusters == 3])], price = df$price)
-cluster4 <- cbind(df[names(kclusters[kclusters == 4])], price = df$price)
+cluster1 <- cbind(model = df$model, df[names(kclusters[kclusters == 1])], price = df$price)
+cluster2 <- cbind(model = df$model, df[names(kclusters[kclusters == 2])], price = df$price)
+cluster3 <- cbind(model = df$model, df[names(kclusters[kclusters == 3])], price = df$price)
+cluster4 <- cbind(model = df$model, df[names(kclusters[kclusters == 4])], price = df$price)
 ```
 
 Since we are comparing `price` to `sales` lets flatten the data frames and use `melt()`  to reshape them to have all the `sales` in one column and the `price` matched to it in a second column.
 
-```{r}
+```{r message=FALSE}
 library(reshape2)
+tmp1 <- melt(cluster1, id.vars = c("model", "price"), variable.name = "vendor", value.name = "sales")
+tmp2 <- melt(cluster2, id.vars = c("model","price"), variable.name = "vendor", value.name = "sales")
+tmp3 <- melt(cluster3, id.vars = c("model","price"), variable.name = "vendor", value.name = "sales")
+tmp4 <- melt(cluster4, id.vars = c("model","price"), variable.name = "vendor", value.name = "sales")
 
-tmp1 <- melt(cluster1, id.vars = "price", variable.name = "vendor", value.name = "sales")
-tmp2 <- melt(cluster2, id.vars = "price", variable.name = "vendor", value.name = "sales")
-tmp3 <- melt(cluster3, id.vars = "price", variable.name = "vendor", value.name = "sales")
-tmp4 <- melt(cluster4, id.vars = "price", variable.name = "vendor", value.name = "sales")
+```
+
+
+Since `price` and sales percentages of vendors are not on the same metric we need to **preprocess** and scale the data. We will be using the `scale()` function which standardizes the data by subtracting the data point from the `mean()` and diving it by the standard deviation `sd()`.
+
+```{r}
+scaled.dat1 <- as.data.frame(scale(tmp1[c(2,4)]))
+scaled.dat2 <- as.data.frame(scale(tmp2[c(2,4)]))
+scaled.dat3 <- as.data.frame(scale(tmp3[c(2,4)]))
+scaled.dat4 <- as.data.frame(scale(tmp4[c(2,4)]))
 ```
 
 #### Checking Assumptions
@@ -344,80 +368,161 @@ It's always good practice to check the assumptions of a linear model in order to
 
 Before we begin lets explore the data frames we created and check the distributions of `sales` through histogram plots.
 
-```{r}
+```{r message=FALSE}
 library(gridExtra)
-
 hist1 <- ggplot(tmp1) +
   geom_histogram(aes(x = sales),bins = 50) +
   ggtitle("Sales Distribution, Cluster 1") +
   xlab("Sales (percentage)")
-
 hist2 <- ggplot(tmp2) +
   geom_histogram(aes(x = sales),bins = 50) +
   ggtitle("Sales Distribution, Cluster 2") +
   xlab("Sales (percentage)")
-
 hist3 <- ggplot(tmp3) +
   geom_histogram(aes(x = sales),bins = 50) +
   ggtitle("Sales Distribution, Cluster 3") +
   xlab("Sales (percentage)")
-
 hist4 <- ggplot(tmp4) +
   geom_histogram(aes(x = sales),bins = 50) +
   ggtitle("Sales Distribution, Cluster 4") +
   xlab("Sales (percentage)")
-
 grid.arrange(hist1, hist2, hist3, hist4, nrow = 2)
 ```
 
-The distributions shows us a lot of the sales from bike vendors have bikes that yeild a zero percent sales percentage and most of the sales fall between 0 and 0.03 percent.
+The distributions shows us a lot of the sales from bike vendors have bikes that yield a zero percent sales percentage and most of the sales fall between 0 and 0.03 percent. From looking at this we could already start to set expectations that the data may not ideally linear or normal.
 
-Now lets create our linear models and continue to check the assumptions.
+Now lets create our linear models and continue to check the assumptions. Since our interest is seeing how `price` affects `sales`, the **independent variable** is `price` and the outcome or **dependent variable** is `sales`.
 
 ```{r linear models}
 # create linear models
-fit_1 <- lm(sales ~ price, data = tmp1)
-fit_2 <- lm(sales ~ price, data = tmp2)
-fit_3 <- lm(sales ~ price, data = tmp3)
-fit_4 <- lm(sales ~ price, data = tmp4)
+fit_1 <- lm(sales ~ price, data = scaled.dat1)
+fit_2 <- lm(sales ~ price, data = scaled.dat2)
+fit_3 <- lm(sales ~ price, data = scaled.dat3)
+fit_4 <- lm(sales ~ price, data = scaled.dat4)
 ```
 
-The following shows **Q-Q Plots** to check for *Normality* which measures actual `qunatiles` with predicted `quantiles`. If most of the data points follow the linear line then we can assumed *Normality*.
+The first thing we can check when checking assumptions is the *Fitted vs Residuals* plot. Here we take the linear model we created like `fit_1`, and plot the `fitted` or *predicted* values against the `residuals`. The two things to look for are:
 
-```{r normality, fig.height = 8, fig.width=8}
+* Are `residuals` (y-axis) equally distributed above and below 0? Or in other words is the `mean()` of residuals close to 0?
+* Is the spread of `fitted` (x-axis) values evenly spread?
+
+If the `residuals` `mean` is not close to 0, then the *linearity* assumption is violated.
+If the `fitted` values is not evenly spread, then the *equal variance* assumption is violated.
+
+```{r fitted vs residuals}
 par(mfrow = c(2,2))
 
-qqnorm(resid(fit_1), main = "Normal Q-Q Plot, Cluster 1", col = "darkgrey")
-qqline(resid(fit_1), col = "dodgerblue", lwd = 2)
+plot(fitted(fit_1), resid(fit_1), col = "grey", pch = 20,
+     xlab = "Fitted", ylab = "Residuals", main = "Fitted vs Residuals (Cluster 1)")
+abline(h = 0, col = "dodgerblue", lwd = 2)
 
-qqnorm(resid(fit_2), main = "Normal Q-Q Plot, Cluster 2", col = "darkgrey")
-qqline(resid(fit_2), col = "dodgerblue", lwd = 2)
+plot(fitted(fit_2), resid(fit_2), col = "grey", pch = 20,
+     xlab = "Fitted", ylab = "Residuals", main = "Fitted vs Residuals (Cluster 2)")
+abline(h = 0, col = "dodgerblue", lwd = 2)
 
-qqnorm(resid(fit_3), main = "Normal Q-Q Plot, Cluster 3", col = "darkgrey")
-qqline(resid(fit_3), col = "dodgerblue", lwd = 2)
+plot(fitted(fit_3), resid(fit_3), col = "grey", pch = 20,
+     xlab = "Fitted", ylab = "Residuals", main = "Fitted vs Residuals (Cluster 3)")
+abline(h = 0, col = "dodgerblue", lwd = 2)
 
-qqnorm(resid(fit_4), main = "Normal Q-Q Plot, Cluster 4", col = "darkgrey")
-qqline(resid(fit_4), col = "dodgerblue", lwd = 2)
-
+plot(fitted(fit_4), resid(fit_4), col = "grey", pch = 20,
+     xlab = "Fitted", ylab = "Residuals", main = "Fitted vs Residuals (Cluster 4)")
+abline(h = 0, col = "dodgerblue", lwd = 2)
 ```
 
-These Q-Q plots are interesting. We can see that most of the data points all within *Normality* but have tapering tails. For this project we will assume *Normality*.
+For each plot of each Cluster, we can see problems in both *linearity* and *equal variance*. For 
+
+**Cluster 1**, *linearity* may be okay, but we can see `fitted` values are more dense on the left side of the plot showing a violation of *equal variance*.
+
+**Cluster 2**, *linearity* with the exception of a some really high `residuals` the `mean` may be close to zero, but the `fitted` values are heavily favored to the right side of the plot. Again, *equal variance* is violated.
+
+**Cluster 3**, has the same *lineartiy* issues as the rest with *equal variance* also violated.
+
+**Cluster 4** actually looks the best out of the 4, but it can be argued that both *linearity* and *equal variance* are violated.
 
 
-Next, we're going to check for *Equal Variance* via Breusch-Pagan test by using the `bptest()` function.
+Since the *Residual vs Fitted* plot is kind of subjective, we can check *equal variance* using the *Breusch-Pagan* test.
 
-```{r equal variance}
+```{r message= FALSE}
 library(lmtest)
 
 bptest(fit_1)
+```
+
+For **Cluster 1** the p-value is small. This is a violation of *equal variance*.
+
+```{r}
 bptest(fit_2)
+```
+
+Interestingly, **Cluster 2** p-value is large which would mean *equal variance* is not violated as oppose to what the *Fitted vs Residuals* plot would show.
+
+```{r}
 bptest(fit_3)
+```
+
+Again, for **Cluster 3** *equal variance* is not violated.
+
+```{r}
 bptest(fit_4)
 ```
 
-Each linear model has a high `p-value` other than `fit_1` but can still be considered within the limits to fail to reject the null of homoscedasticity.Or in other words they all pass the *Equal Variance* test.
+**Cluster 4** shows that *equal variance* assumption is met.
 
-While this data may not be ideal, the most important part is whether the linear model makes sense. Based on our assumptions and expectations we can safely say that a linear model how price affects sales makes sense and we proceed with the model. 
+Another assumption for a linear model is *Normality*. The most common plot to use is a `histogram` plot. NOTE - A common misconception is that for checking *Normality* you check the `residuals` and not the actual points like we did earlier.
+
+```{r}
+par(mfrow = c(2,2))
+
+hist(resid(fit_1),
+     xlab = "Residuals",
+     main = "Histogram of Residuals, fit_1",
+     col = "darkorange",
+     border = "black",
+     breaks = 20)
+
+hist(resid(fit_2),
+     xlab = "Residuals",
+     main = "Histogram of Residuals, fit_2",
+     col = "darkorange",
+     border = "black",
+     breaks = 20)
+
+hist(resid(fit_3),
+     xlab = "Residuals",
+     main = "Histogram of Residuals, fit_3",
+     col = "darkorange",
+     border = "black",
+     breaks = 20)
+
+hist(resid(fit_4),
+     xlab = "Residuals",
+     main = "Histogram of Residuals, fit_3",
+     col = "darkorange",
+     border = "black",
+     breaks = 20)
+```
+
+The `histogram` plots show that each cluster have a positive skew which is evident with the long tails going towards the right of each plot. This is what may be causing a violation of *Noramlity*. Let's check another tool we can use to confirm.
+
+
+The following shows **Q-Q Plots**, which measures actual `qunatiles` with predicted `quantiles`. If most of the data points follow the linear line then we can assume *Normality*.
+
+```{r normality, fig.height = 8, fig.width=8}
+par(mfrow = c(2,2))
+qqnorm(resid(fit_1), main = "Normal Q-Q Plot, Cluster 1", col = "darkgrey")
+qqline(resid(fit_1), col = "dodgerblue", lwd = 2)
+qqnorm(resid(fit_2), main = "Normal Q-Q Plot, Cluster 2", col = "darkgrey")
+qqline(resid(fit_2), col = "dodgerblue", lwd = 2)
+qqnorm(resid(fit_3), main = "Normal Q-Q Plot, Cluster 3", col = "darkgrey")
+qqline(resid(fit_3), col = "dodgerblue", lwd = 2)
+qqnorm(resid(fit_4), main = "Normal Q-Q Plot, Cluster 4", col = "darkgrey")
+qqline(resid(fit_4), col = "dodgerblue", lwd = 2)
+```
+
+These Q-Q plots are interesting. We can see that most of the data points all within *Normality* but have tapering tails. Those ends violate the assumption of *Normality*. 
+
+
+While this data may not be ideal, the most important part is whether the linear model makes sense. Based on our assumptions and expectations we could argue that a linear regression can still make sense but it may not be the best model. For the sake of this project, let's continue with the regression plots and analyze the results.
 
 
 #### Regression plots
@@ -425,33 +530,30 @@ While this data may not be ideal, the most important part is whether the linear 
 An important analysis tool of regression is the visual scatter plot of the data points with the linear regression line.
 
 ```{r regression plots}
-grid1 <- ggplot(tmp1, aes(x = price, y = sales)) +
+grid1 <- ggplot(scaled.dat1, aes(x = price, y = sales)) +
   geom_point() +
   geom_smooth(method = "lm") +
   ggtitle("Regression Plot, Cluster 1") +
-  xlab("Price ($)") +
-  ylab("Sales (percentage")
-
-grid2 <- ggplot(tmp2, aes(x = price, y = sales)) +
+  xlab("Price") +
+  ylab("Sales")
+grid2 <- ggplot(scaled.dat2, aes(x = price, y = sales)) +
   geom_point() +
   geom_smooth(method = "lm") +
   ggtitle("Regression Plot, Cluster 2") +
-  xlab("Price ($)") +
-  ylab("Sales (percentage")
-
-grid3 <- ggplot(tmp3, aes(x = price, y = sales)) +
+  xlab("Price") +
+  ylab("Sales")
+grid3 <- ggplot(scaled.dat3, aes(x = price, y = sales)) +
   geom_point() +
   geom_smooth(method = "lm") +
   ggtitle("Regression Plot, Cluster 3") +
-  xlab("Price ($)") +
-  ylab("Sales (percentage")
-
-grid4 <- ggplot(tmp4, aes(x = price, y = sales)) +
+  xlab("Price") +
+  ylab("Sales")
+grid4 <- ggplot(scaled.dat4, aes(x = price, y = sales)) +
   geom_point() +
   geom_smooth(method = "lm") +
   ggtitle("Regression Plot, Cluster 4") +
-  xlab("Price ($)") +
-  ylab("Sales (percentage")
+  xlab("Price") +
+  ylab("Sales")
 grid.arrange(grid1, grid2, grid3, grid4, nrow = 2)
 ```
 
@@ -462,9 +564,7 @@ We can see that the data match our expectations. For **Cluster 1** and **Cluster
 Interpreting the results is possibly the most important step in the *Epicycle of Analysis*. This is where we decide whether our analysis is meaningful. Before we start let's first revisit the original questions.
 
 >"What kind of bicycle are people most interested in?"
-
 >"Where would our bicycle sell the best?"
-
 The primary statistical model is the K-means cluster analysis. Here we found customer segmentation of 4 groups of bike vendors. 
 
 **Cluster 1**  customers preferred `Road` bikes over `Mountain` and their top 10 selling bikes are high-end with `Carbon` frames and a high `price`. The regression plot showed that as price increases sales also slightly increase further confirming customers in this group prefered higher end bikes.
